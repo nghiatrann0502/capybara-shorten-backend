@@ -165,18 +165,23 @@ func (h *Handler) createShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var shortId = h.store.GenerateShortLink(body.Url)
+
 	data := model.CreateShorten{
 		Url:     body.Url,
-		ShortId: h.store.GenerateShortLink(body.Url),
+		ShortId: shortId,
 	}
-
-	id, err := h.store.Storage.CreateShortURL(data)
+	if err := data.Validate(); err != nil {
+		h.SimpleError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	_, err := h.store.Storage.CreateShortURL(data)
 	if err != nil {
 		h.SimpleError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	h.SimpleResponse(w, http.StatusOK, id)
+	h.SimpleResponse(w, http.StatusOK, shortId)
 }
 
 func (h *Handler) getLongUrlHandler(w http.ResponseWriter, r *http.Request) {
