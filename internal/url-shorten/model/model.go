@@ -1,10 +1,22 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 )
+
+type TrackingPayload struct {
+	Name string        `json:"name"`
+	Data *TrackingData `json:"data"`
+}
+
+type TrackingData struct {
+	Id        int    `json:"id"`
+	UserAgent string `json:"user_agent"`
+	Referer   string `json:"referer"`
+}
 
 type URLShorten struct {
 	ID        int        `json:"id"`
@@ -17,6 +29,15 @@ type URLShorten struct {
 type CreateShorten struct {
 	ShortId string `json:"short_id"`
 	Url     string `json:"url"`
+}
+
+type URLCached struct {
+	Id  int    `json:"id" redis:"id"`
+	Url string `json:"url" redis:"url"`
+}
+
+func (u *URLCached) MarshalBinary() ([]byte, error) {
+	return json.Marshal(u)
 }
 
 func (data *CreateShorten) Validate() error {

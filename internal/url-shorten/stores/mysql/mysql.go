@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/nghiatrann0502/capybara-shorten-backend/internal/url-shorten/model"
+	"log"
 	"time"
 )
 
@@ -60,24 +61,26 @@ func (store *Store) CreateShortURL(data model.CreateShorten) (int, error) {
 	return int(id), nil
 }
 
-func (store *Store) GetLongUrl(shortId string) (string, error) {
-	var originalUrl string
+func (store *Store) GetLongUrl(shortId string) (*model.URLCached, error) {
+	var cached model.URLCached
+
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	stmt := `SELECT original_url FROM url WHERE short_id = ?`
+	stmt := `SELECT id, original_url FROM url WHERE short_id = ?`
 
-	err := store.db.QueryRowContext(ctx, stmt, shortId).Scan(&originalUrl)
+	err := store.db.QueryRowContext(ctx, stmt, shortId).Scan(&cached.Id, &cached.Url)
 	if err != nil {
 
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", errors.New("URL not found")
+			return nil, errors.New("URL not found")
 		}
 
-		return "", err
+		log.Println(err)
+		return nil, err
 	}
 
-	return originalUrl, nil
+	return &cached, nil
 }
 
 func (store *Store) Close() error {

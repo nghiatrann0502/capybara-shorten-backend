@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -186,23 +187,50 @@ func (h *Handler) createShortenHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) getLongUrlHandler(w http.ResponseWriter, r *http.Request) {
 	shortId := r.PathValue("shortId")
+	result := model.URLCached{}
 
-	result, err := h.store.RedisClient.Get(context.TODO(), fmt.Sprintf("URL:%s", shortId)).Result()
-
+	err := h.store.RedisClient.HMGet(context.TODO(), fmt.Sprintf("URL:%s", shortId), "id", "url").Scan(&result)
 	if errors.Is(err, redis.Nil) {
-		url, err := h.store.Storage.GetLongUrl(shortId)
+		data, err := h.store.Storage.GetLongUrl(shortId)
 		if err != nil {
 			h.SimpleError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		h.store.RedisClient.Set(context.TODO(), fmt.Sprintf("URL:%s", shortId), url, 0)
-		h.Redirect(w, r, url)
+		if err := h.store.RedisClient.HSet(context.Background(), fmt.Sprintf("URL:%s", shortId), model.URLCached{Id: data.Id, Url: data.Url}).Err(); err != nil {
+			log.Println(err)
+		}
+
+		go func() {
+			err := h.store.PushToQueue("INCREASE_COUNT", &model.TrackingData{
+				Id:        data.Id,
+				Referer:   "localhost",
+				UserAgent: "user_agent",
+			})
+			if err != nil {
+				log.Println(err)
+				fmt.Println("Error pushing to queue")
+			}
+			fmt.Println("done")
+		}()
+		h.Redirect(w, r, data.Url)
 		return
 	} else if err != nil {
+		log.Println(err, "redis error")
 		h.SimpleError(w, http.StatusInternalServerError, err.Error())
 		return
 	} else {
-		h.Redirect(w, r, result)
+		go func() {
+			err := h.store.PushToQueue("INCREASE_COUNT", &model.TrackingData{
+				Id:        result.Id,
+				Referer:   "localhost",
+				UserAgent: "user_agent",
+			})
+			if err != nil {
+				log.Println(err)
+				fmt.Println("Error pushing to queue")
+			}
+		}()
+		h.Redirect(w, r, result.Url)
 	}
 }
