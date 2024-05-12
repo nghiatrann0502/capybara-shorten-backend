@@ -29,6 +29,10 @@ func initLogger() (func(), error) {
 		log.Println(err.Error())
 		return nil, errors.New("could not create store")
 	}
+	if err := store.CreateConsumer(); err != nil {
+		log.Println(err.Error())
+		return nil, errors.New("could not create consumer")
+	}
 
 	return func() {
 		if err = store.CloseStore(); err != nil {

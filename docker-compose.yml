@@ -35,6 +35,16 @@ services:
 #      RABBITMQ_DEFAULT_PASS: rabbitmq
     volumes:
       - rabbit_data:/var/lib/rabbitmq
+  mongo:
+    image: "mongo:4.2.16-bionic"
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: logs
+    volumes:
+      - mongo_data:/data/db/
 
 volumes:
   mysql_data:
@@ -42,4 +52,6 @@ volumes:
   redis_data:
     driver: local
   rabbit_data:
+    driver: local
+  mongo_data:
     driver: local

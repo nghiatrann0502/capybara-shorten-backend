@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func declareExchange(ch *amqp.Channel) error {
+func DeclareExchange(ch *amqp.Channel) error {
 	return ch.ExchangeDeclare(
 		"logs_topic",
 		"topic",
@@ -20,7 +20,7 @@ func declareExchange(ch *amqp.Channel) error {
 	)
 }
 
-func declareRandomQueue(ch *amqp.Channel) (amqp.Queue, error) {
+func DeclareRandomQueue(ch *amqp.Channel) (amqp.Queue, error) {
 	return ch.QueueDeclare(
 		"",
 		false,

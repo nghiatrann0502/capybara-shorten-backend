@@ -17,7 +17,7 @@ func (e *Emitter) setup() error {
 	}
 
 	defer channel.Close()
-	return declareExchange(channel)
+	return DeclareExchange(channel)
 }
 
 func (e *Emitter) Push(event string, severity string) error {

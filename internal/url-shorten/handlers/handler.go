@@ -190,12 +190,14 @@ func (h *Handler) getLongUrlHandler(w http.ResponseWriter, r *http.Request) {
 	result := model.URLCached{}
 
 	err := h.store.RedisClient.HMGet(context.TODO(), fmt.Sprintf("URL:%s", shortId), "id", "url").Scan(&result)
-	if errors.Is(err, redis.Nil) {
+	if errors.Is(err, redis.Nil) || result.Id <= 0 {
 		data, err := h.store.Storage.GetLongUrl(shortId)
 		if err != nil {
 			h.SimpleError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+
+		log.Println(data, "data")
 
 		if err := h.store.RedisClient.HSet(context.Background(), fmt.Sprintf("URL:%s", shortId), model.URLCached{Id: data.Id, Url: data.Url}).Err(); err != nil {
 			log.Println(err)
@@ -204,8 +206,8 @@ func (h *Handler) getLongUrlHandler(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			err := h.store.PushToQueue("INCREASE_COUNT", &model.TrackingData{
 				Id:        data.Id,
-				Referer:   "localhost",
-				UserAgent: "user_agent",
+				Referer:   r.Referer(),
+				UserAgent: r.UserAgent(),
 			})
 			if err != nil {
 				log.Println(err)
@@ -220,17 +222,19 @@ func (h *Handler) getLongUrlHandler(w http.ResponseWriter, r *http.Request) {
 		h.SimpleError(w, http.StatusInternalServerError, err.Error())
 		return
 	} else {
+		log.Println(result, "result")
 		go func() {
 			err := h.store.PushToQueue("INCREASE_COUNT", &model.TrackingData{
 				Id:        result.Id,
-				Referer:   "localhost",
-				UserAgent: "user_agent",
+				Referer:   r.Referer(),
+				UserAgent: r.UserAgent(),
 			})
 			if err != nil {
 				log.Println(err)
 				fmt.Println("Error pushing to queue")
 			}
 		}()
+
 		h.Redirect(w, r, result.Url)
 	}
 }

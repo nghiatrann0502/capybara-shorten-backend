@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/nghiatrann0502/capybara-shorten-backend/internal/logger/model"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"log"
 )
 
 type Consumer struct {
@@ -31,7 +32,7 @@ func (consumer *Consumer) setup() error {
 		return err
 	}
 
-	return declareExchange(channel)
+	return DeclareExchange(channel)
 }
 
 func (consumer *Consumer) Listen(topic []string) error {
@@ -42,7 +43,7 @@ func (consumer *Consumer) Listen(topic []string) error {
 
 	defer ch.Close()
 
-	q, err := declareRandomQueue(ch)
+	q, err := DeclareRandomQueue(ch)
 	if err != nil {
 		return err
 	}
@@ -70,7 +71,7 @@ func (consumer *Consumer) Listen(topic []string) error {
 			var payload model.TrackingPayload
 			_ = json.Unmarshal(d.Body, &payload)
 			// Do something with the payload
-			go handlePayload(payload)
+			go handlePayload(consumer, payload)
 		}
 	}()
 
@@ -79,11 +80,29 @@ func (consumer *Consumer) Listen(topic []string) error {
 	return nil
 }
 
-func handlePayload(payload model.TrackingPayload) {
+func handlePayload(c *Consumer, payload model.TrackingPayload) {
 	switch payload.Name {
 	case "INCREASE_COUNT":
-		fmt.Println(payload.Data, "Payload")
+		if err := handleCreateLog(c, payload.Data); err != nil {
+			fmt.Println(err)
+		}
+
 	default:
 		fmt.Println("Unknown event")
 	}
+}
+
+func handleCreateLog(c *Consumer, payload model.TrackingData) error {
+	data := &model.LogEntry{
+		UrlId:     payload.Id,
+		Referer:   payload.Referer,
+		UserAgent: payload.UserAgent,
+	}
+	log.Println(data)
+	//
+	//if err := Storage.Insert(data); err != nil {
+	//	return err
+	//}
+
+	return nil
 }
